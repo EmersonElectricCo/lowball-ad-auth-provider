@@ -11,27 +11,28 @@ class LDAPAuthProvider(AuthProvider):
     :param password: the password of the service account.
     :type password: str
     """
-    def __init__(self, service_account, service_account_password, hostname, base_dn,  ):
+
+    def __init__(self,
+                 service_account,
+                 service_account_password,
+                 hostname,
+                 base_dn,
+                 domain,
+                 username_attribute,
+                 port=None,
+                 protocol="ldap",
+                 protocol_version="3",
+                 roll_mappings={}
+                 ):
         super(LDAPAuthProvider, self).__init__()
 
-        if not isinstance(username, str):
+        if not isinstance(service_account, str):
             raise TypeError("username must be a string")
-        self._username = username
+        self._service_account = service_account
 
-        if not isinstance(password, str):
+        if not isinstance(service_account_password, str):
             raise TypeError("password must be a string")
-        self._password = password
-
-        #service_account, r
-        #service_account_password,r
-        #protocol, o, ldap
-        #base_dn, r
-        #hostname, r
-        #protocol_version, o,3
-        #domain, r
-        #roll_mappings, o, {}
-        #username_ldap_attribute, r
-        #port, o, defaults to the particular ldap protocol
+        self._service_account_password = service_account_password
 
         # protocol to connect to the LDAP instance (ldap or ldaps)
         protocol = "ldap"
@@ -122,4 +123,4 @@ class LDAPAuthPackage(AuthPackage):
 __all__ = [
     "LDAPAuthProvider",
     "LDAPAuthPackage"
-    ]
+]
