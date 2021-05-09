@@ -12,6 +12,15 @@ class LDAPAuthProvider(AuthProvider):
     :type password: str
     """
 
+    def _build_filter(self, username):
+        pass
+
+    def _auth_user(self, username, password):
+        pass
+
+    def _do_lookup(self, user_name):
+        pass
+
     def __init__(self,
                  service_account,
                  service_account_password,
@@ -24,6 +33,7 @@ class LDAPAuthProvider(AuthProvider):
                  protocol_version="3",
                  roll_mappings={}
                  ):
+
         super(LDAPAuthProvider, self).__init__()
 
         if not isinstance(service_account, str):
@@ -34,25 +44,7 @@ class LDAPAuthProvider(AuthProvider):
             raise TypeError("password must be a string")
         self._service_account_password = service_account_password
 
-        # protocol to connect to the LDAP instance (ldap or ldaps)
-        protocol = "ldap"
 
-        # This is the attribute that it is going to attempt to match off of
-        # for searching for a user
-        username_ldap_attribute = 'sAMAccountName'
-
-        # Base DN to search through: ex: 'DC=<my org>, DC=org'
-        base_dn = ""
-
-        # Protocol to use
-        protocol_version = 3
-
-        # hostname for ldap server
-        hostname = ""
-
-        domain = 'EMRSN\\'
-
-        roll_mappings = {}
 
     @property
     def username(self):
