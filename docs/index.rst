@@ -35,22 +35,22 @@ Configuration
 **Mandatory Config Fields**
 
 `service_account`
-  something
+  username of the service account used to lookup users.
 
 `service_account_password`
-  something
+  password of the service account
 
 `base_dn`
-  something
+  base dn of the of the search path for users
 
 `hostname`
-  something
+  hostname or ip of the server to use
 
 `domain`
-  something
+  domain to prepend in front of user authentications
 
 `username_ldap_attribute`
-  something
+  attribute to use as the username
 
 
 **Optional Config Fields**
@@ -59,23 +59,25 @@ Configuration
   something
 
 `protocol`
-  something
+  `ldap` or `ldaps`. If not set, defaults to `ldap`
 
 `protocol_version`
-  something
+  ldap protocol version to use. If not set, will use `3`
 
 `port`
-  something
+  port on the server to use. If no set, defaults to the appropriate port for the chosen protocol
+
+
+**Example Config**
 
 .. code-block:: yaml
 
-    # service_account, r
-    # service_account_password,r
-    # protocol, o, ldap
-    # base_dn, r
-    # hostname, r
-    # protocol_version, o,3
-    # domain, r
-    # roll_mappings, o, {}
-    # username_ldap_attribute, r
-    # port, o, defaults to the particular ldap protocol
+    auth_provider:
+      service_account: admin
+      service_account_password: myComplexPassword
+      base_dn: "dc=example, dc=org"
+      domain: corp
+      username_ldap_attribute: uid
+      role_mappings:
+        -user : ["accounting","hr","engineering","owners"]
+        -finance : ["accounting","owners"
