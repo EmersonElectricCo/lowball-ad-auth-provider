@@ -30,7 +30,6 @@ class LDAPAuthProvider(AuthProvider):
                  username_attribute,
                  port=None,
                  protocol="ldap",
-                 protocol_version="3",
                  roll_mappings={}
                  ):
 
