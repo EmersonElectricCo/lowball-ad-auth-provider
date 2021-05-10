@@ -1,1 +1,1 @@
-# lowball-ldap-auth-provider
+# lowball-ad-auth-provider

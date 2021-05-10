@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-DESCRIPTION = "An Authentication Provider for lowball that uses LDAP or Active Directory as it's Identity Provider"
+DESCRIPTION = "An Authentication Provider for lowball that uses Active Directory as it's Identity Provider"
 VERSION = "1.0.0"
 
 
@@ -36,12 +36,12 @@ setup(name="lowball",
       version=VERSION,
       description=DESCRIPTION,
       long_description=readme(),
-      url="https://github.com/EmersonElectricCo/lowball",
+      url="https://github.com/EmersonElectricCo/lowball-ad-auth-provider",
       author="Timothy Lemm",
       author_email="compsecmonkey@gmail.com",
       license="Apache License 2.0",
       packages=find_packages(),
       install_requires=read_requirements(),
-      test_suite="lowball-ldapconftest.py.tests",
+      test_suite="lowball-adconftest.py.tests",
       zip_safe=False
       )

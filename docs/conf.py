@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'lowball-ldap'
+project = 'lowball-ad'
 copyright = '2021'
 
 # The full version, including alpha/beta/rc tags
