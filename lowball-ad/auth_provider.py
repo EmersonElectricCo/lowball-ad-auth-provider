@@ -1,6 +1,10 @@
 from lowball.models.provider_models.auth_provider import AuthProvider, AuthPackage
 from lowball.models.authentication_models import ClientData
-from lowball.exceptions import MalformedAuthPackageException, InvalidCredentialsException
+from lowball.exceptions import AuthenticationNotInitializedException, InvalidCredentialsException
+
+import ssl
+import json
+from ldap3 import Server, Connection, NTLM, ALL_ATTRIBUTES, Tls
 
 
 class ADAuthProvider(AuthProvider):
@@ -12,71 +16,68 @@ class ADAuthProvider(AuthProvider):
     :type password: str
     """
 
-    def _build_filter(self, username):
-        pass
-
-    def _auth_user(self, username, password):
-        pass
-
-    def _do_lookup(self, user_name):
-        pass
-
     def __init__(self,
-                 service_account,
-                 service_account_password,
                  hostname,
                  base_dn,
                  domain,
-                 username_attribute,
-                 port=None,
-                 protocol="ldap",
-                 roll_mappings={}
+                 ignore_ssl_cert_errors=False,
+                 role_mappings={}
                  ):
 
         super(ADAuthProvider, self).__init__()
 
-        if not isinstance(service_account, str):
-            raise TypeError("username must be a string")
-        self._service_account = service_account
+        # Validate All Args
+        if not isinstance(hostname, str):
+            raise TypeError("hostname must be a string")
+        self._hostname = hostname
 
-        if not isinstance(service_account_password, str):
-            raise TypeError("password must be a string")
-        self._service_account_password = service_account_password
+        if not isinstance(base_dn, str):
+            raise TypeError("base_dn must be a string")
+        self._base_dn = base_dn
 
+        if not isinstance(domain, str):
+            raise TypeError("domain must be a string")
+        self._domain = domain
 
+        if ignore_ssl_cert_errors:
+            tls_configuration = Tls(validate=ssl.CERT_NONE)
+            self._server = Server(hostname, use_ssl=True, tls=tls_configuration)
+        else:
+            self._server = Server(hostname, use_ssl=True)
 
-    @property
-    def username(self):
-        """Get the username needed for authentication"""
-        return self._username
-
-    @username.setter
-    def username(self, value):
-        """Can't set username after init"""
-        raise PermissionError("cannot set username after init")
-
-    @property
-    def password(self):
-        """Get the password needed for authentication"""
-        return self._password
-
-    @password.setter
-    def password(self, value):
-        """Can't set password after init"""
-        raise PermissionError("cannot set password after init")
+        if not isinstance(role_mappings, dict) or not all(isinstance(value, list) for value in role_mappings.values()):
+            raise TypeError("role_mappings must be of type dict with arrays of strings")
+        self._role_mappings = role_mappings
 
     def authenticate(self, auth_package):
         """Authenticate a user.
         something something
         :param auth_package: data needed to authenticate with this provider
-        :type auth_package: DefaultAuthPackage
+        :type auth_package: ADAuthPackage
         :return: auth data
         :rtype: AuthData
         """
-        pass
+        conn = Connection(self._server,
+                          user=auth_package.username,
+                          password=auth_package.password,
+                          authentication=NTLM)
 
-    def get_client(self, client_id):
-        pass
+        if conn.bind():
+            if conn.search(self._base_dn, '(sAMAccountName=' + auth_package.username + ')', attributes=ALL_ATTRIBUTES):
+                user_data = json.loads(conn.response_to_json())
+                roles = []
+                for group in user_data['memberOf']:
+                    for role in self._role_mappings:
+                        if group in self._role_mappings[role]:
+                            roles.append(role)
+                unique_roles = set(roles)
+
+                return ClientData(client_id=auth_package.username, roles=list(unique_roles))
+
+            else:
+                raise AuthenticationNotInitializedException
+        else:
+            raise InvalidCredentialsException
 
     @property
     def auth_package_class(self):
