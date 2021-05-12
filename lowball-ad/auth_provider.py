@@ -58,15 +58,15 @@ class ADAuthProvider(AuthProvider):
         :rtype: AuthData
         """
         conn = Connection(self._server,
-                          user=auth_package.username,
+                          user=self._domain+"\\"+auth_package.username,
                           password=auth_package.password,
                           authentication=NTLM)
 
-        if conn.bind():
+        if conn.bind(): # Connects with user; True if Valid Creds and Server Reachable
             if conn.search(self._base_dn, '(sAMAccountName=' + auth_package.username + ')', attributes=ALL_ATTRIBUTES):
                 user_data = json.loads(conn.response_to_json())
                 roles = []
-                for group in user_data['memberOf']:
+                for group in user_data['entries'][0]['attributes']['memberOf']:
                     for role in self._role_mappings:
                         if group in self._role_mappings[role]:
                             roles.append(role)
@@ -74,7 +74,7 @@ class ADAuthProvider(AuthProvider):
 
                 return ClientData(client_id=auth_package.username, roles=list(unique_roles))
 
-            else:
+            else: # We were able to bind but the user wasnt found. Likely a config issue with the base DN
                 raise AuthenticationNotInitializedException
         else:
             raise InvalidCredentialsException
@@ -83,6 +83,9 @@ class ADAuthProvider(AuthProvider):
     def auth_package_class(self):
         """The auth package class that this class' `authenticate` method accepts."""
         return ADAuthPackage
+
+    def get_client(self, client_id):
+        pass
 
 
 class ADAuthPackage(AuthPackage):
