@@ -1,10 +1,32 @@
 from lowball.models.provider_models.auth_provider import AuthProvider, AuthPackage
 from lowball.models.authentication_models import ClientData
-from lowball.exceptions import AuthenticationNotInitializedException, InvalidCredentialsException
+from lowball.exceptions import AuthenticationNotInitializedException, InvalidCredentialsException, NotFoundException
 
 import ssl
 import json
 from ldap3 import Server, Connection, NTLM, ALL_ATTRIBUTES, Tls
+
+
+class RoleMappings:
+    def __init__(self, mapping=None):
+        if mapping is None:
+            mapping = {}
+        self.mapping = mapping
+    @property
+    def mapping(self):
+        return self._mapping
+
+    @mapping.setter
+    def mapping(self, value):
+        if not isinstance(value, dict):
+            raise ValueError("Invalid role mappings. Must be a dictionary of {str: [str, str],..}")
+        for mappings in value.values():
+            if not isinstance(mappings, list) and not all(isinstance(group, str) for group in mappings):
+                raise ValueError("Invalid role mappings. Must be a dictionary of {str: [str, str],..}")
+        self._mapping = value
+
+    def get_roles(self, groups):
+        return [role for role, mapping in self.mapping.items() if any(group in mapping for group in groups)]
 
 
 class ADAuthProvider(AuthProvider):
@@ -20,10 +42,14 @@ class ADAuthProvider(AuthProvider):
                  hostname,
                  base_dn,
                  domain,
+                 service_account="",
+                 service_account_password="",
+                 use_ssl=True,
                  ignore_ssl_cert_errors=False,
-                 role_mappings={}
+                 role_mappings=None
                  ):
-
+        if role_mappings is None:
+            role_mappings = {}
         super(ADAuthProvider, self).__init__()
 
         # Validate All Args
@@ -38,16 +64,24 @@ class ADAuthProvider(AuthProvider):
         if not isinstance(domain, str):
             raise TypeError("domain must be a string")
         self._domain = domain
-
-        if ignore_ssl_cert_errors:
-            tls_configuration = Tls(validate=ssl.CERT_NONE)
-            self._server = Server(hostname, use_ssl=True, tls=tls_configuration)
+        if use_ssl:
+            if ignore_ssl_cert_errors:
+                tls_configuration = Tls(validate=ssl.CERT_NONE)
+                self._server = Server(hostname, use_ssl=True, tls=tls_configuration)
+            else:
+                self._server = Server(hostname, use_ssl=True)
         else:
-            self._server = Server(hostname, use_ssl=True)
+            self._server = Server(hostname, use_ssl=False)
 
-        if not isinstance(role_mappings, dict) or not all(isinstance(value, list) for value in role_mappings.values()):
-            raise TypeError("role_mappings must be of type dict with arrays of strings")
-        self._role_mappings = role_mappings
+        if service_account and not isinstance(service_account, str):
+            raise TypeError("service_account must be a string if set")
+        if service_account_password and not isinstance(service_account_password, str):
+            raise TypeError("service_account_password must be a string if set")
+
+        self._service_account = service_account
+        self._service_account_password = service_account_password
+
+        self._role_mappings = RoleMappings(role_mappings)
 
     def authenticate(self, auth_package):
         """Authenticate a user.
@@ -62,17 +96,15 @@ class ADAuthProvider(AuthProvider):
                           password=auth_package.password,
                           authentication=NTLM)
 
-        if conn.bind(): # Connects with user; True if Valid Creds and Server Reachable
+        # Connects with user; True if Valid Creds and Server Reachable
+        if conn.bind():
             if conn.search(self._base_dn, '(sAMAccountName=' + auth_package.username + ')', attributes=ALL_ATTRIBUTES):
                 user_data = json.loads(conn.response_to_json())
-                roles = []
-                for group in user_data['entries'][0]['attributes']['memberOf']:
-                    for role in self._role_mappings:
-                        if group in self._role_mappings[role]:
-                            roles.append(role)
-                unique_roles = set(roles)
+                user_groups = user_data['entries'][0]['attributes']['memberOf']
 
-                return ClientData(client_id=auth_package.username, roles=list(unique_roles))
+                roles = self._role_mappings.get_roles(user_groups)
+                conn.unbind()
+                return ClientData(client_id=auth_package.username, roles=roles)
 
             else: # We were able to bind but the user wasnt found. Likely a config issue with the base DN
                 raise AuthenticationNotInitializedException
@@ -85,7 +117,32 @@ class ADAuthProvider(AuthProvider):
         return ADAuthPackage
 
     def get_client(self, client_id):
-        pass
+        """if service_account is configured, will enable users to create their own tokens
+        The service account will need to have permissions to search for the clients
+
+        :param client_id:
+        :return:
+        """
+        if not self._service_account:
+            exception = AuthenticationNotInitializedException()
+            exception.description = "get_client not configured. Must include service_account in service configuration"
+            raise exception
+        else:
+            conn = Connection(self._server,
+                              user=self._domain + "\\" + self._service_account,
+                              password=self._service_account_password,
+                              authentication=NTLM)
+            if conn.bind():
+                if conn.search(self._base_dn, '(sAMAccountName=' + client_id + ')', attributes=ALL_ATTRIBUTES):
+                    user_data = json.loads(conn.response_to_json())
+                    user_groups = user_data['entries'][0]['attributes']['memberOf']
+                    roles = self._role_mappings.get_roles(user_groups)
+                    conn.unbind()
+                    return ClientData(client_id=client_id, roles=roles)
+                else:
+                    raise NotFoundException(f"The client_id: {client_id} was not found")
+            else:
+                raise AuthenticationNotInitializedException
 
 
 class ADAuthPackage(AuthPackage):

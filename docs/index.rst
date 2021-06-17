@@ -34,12 +34,6 @@ Configuration
 
 **Mandatory Config Fields**
 
-`service_account`
-  username of the service account used to lookup users.
-
-`service_account_password`
-  password of the service account
-
 `base_dn`
   base dn of the of the search path for users
 
@@ -49,12 +43,23 @@ Configuration
 `domain`
   domain to prepend in front of user authentications
 
-
 **Optional Config Fields**
 
 `roll_mappings`
-  something
+  a dictionary of role -> list of groups that would give a user that role
 
+`ignore_ssl_cert_errors`
+  true/false, whether or not to validate ssl. Unused if `use_ssl` is set to false
+
+`use_ssl`
+  true/false, whether or not to use ssl for the connection
+
+`service_account`
+  username of the service account used to lookup users. can be left empty, but users will not be able to look themselves
+  up or create their own tokens
+
+`service_account_password`
+  password of the service account
 
 
 **Example Config**
@@ -66,6 +71,12 @@ Configuration
       service_account_password: myComplexPassword
       base_dn: "dc=example, dc=org"
       domain: corp
+      ignore_ssl_cert_errors: false
+      use_ssl: true
       role_mappings:
-        -user : ["accounting","hr","engineering","owners"]
-        -finance : ["accounting","owners"
+        user:
+          - CN=regular_user,OU=groups,DC=example,DC=org
+          - CN=owners,OU=groups,DC=example,DC=org
+        finance:
+          - CN=accounting,OU=groups,DC=example,DC=org
+          - CN=owners,OU=groups,DC=example,DC=org
