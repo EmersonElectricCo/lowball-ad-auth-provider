@@ -6,32 +6,9 @@ import ssl
 import json
 from ldap3 import Server, Connection, NTLM, ALL_ATTRIBUTES, Tls
 
-
-class RoleMappings:
-    def __init__(self, mapping=None):
-        if mapping is None:
-            mapping = {}
-        self.mapping = mapping
-    @property
-    def mapping(self):
-        return self._mapping
-
-    @mapping.setter
-    def mapping(self, value):
-        if not isinstance(value, dict):
-            raise ValueError("Invalid role mappings. Must be a dictionary of {str: [str, str],..}")
-        for mappings in value.values():
-            if not isinstance(mappings, list) and not all(isinstance(group, str) for group in mappings):
-                raise ValueError("Invalid role mappings. Must be a dictionary of {str: [str, str],..}")
-        self._mapping = value
-
-    def get_roles(self, groups):
-        return [role for role, mapping in self.mapping.items() if any(group in mapping for group in groups)]
-
-
 class ADAuthProvider(AuthProvider):
     """Default Auth Provider for Lowball Applications
-    This is the primary class for the lowball-ldap Authentication Provider.
+    This is the primary class for the lowball_ad Authentication Provider.
     :param username: the username of service account able to lookup and validate users.
     :type username: str
     :param password: the password of the service account.
@@ -81,11 +58,26 @@ class ADAuthProvider(AuthProvider):
         self._service_account = service_account
         self._service_account_password = service_account_password
 
-        self._role_mappings = RoleMappings(role_mappings)
+        self._role_mappings = role_mappings
+
+    @property
+    def role_mappings(self):
+        return self._role_mappings
+
+    @role_mappings.setter
+    def role_mappings(self, value):
+        if not isinstance(value, dict):
+            raise ValueError("Invalid role mappings. Must be a dictionary of {str: [str, str],..}")
+        for mappings in value.values():
+            if not isinstance(mappings, list) and not all(isinstance(group, str) for group in mappings):
+                raise ValueError("Invalid role mappings. Must be a dictionary of {str: [str, str],..}")
+        self._role_mappings = value
+
+    def get_roles(self, groups):
+        return [role for role, mapping in self.role_mappings.items() if any(group in mapping for group in groups)]
 
     def authenticate(self, auth_package):
         """Authenticate a user.
-        something something
         :param auth_package: data needed to authenticate with this provider
         :type auth_package: ADAuthPackage
         :return: auth data
@@ -102,7 +94,7 @@ class ADAuthProvider(AuthProvider):
                 user_data = json.loads(conn.response_to_json())
                 user_groups = user_data['entries'][0]['attributes']['memberOf']
 
-                roles = self._role_mappings.get_roles(user_groups)
+                roles = self.get_roles(user_groups)
                 conn.unbind()
                 return ClientData(client_id=auth_package.username, roles=roles)
 
@@ -137,7 +129,7 @@ class ADAuthProvider(AuthProvider):
                 if conn.search(self._base_dn, '(sAMAccountName=' + client_id + ')', attributes=ALL_ATTRIBUTES):
                     user_data = json.loads(conn.response_to_json())
                     user_groups = user_data['entries'][0]['attributes']['memberOf']
-                    roles = self._role_mappings.get_roles(user_groups)
+                    roles = self.get_roles(user_groups)
                     conn.unbind()
                     return ClientData(client_id=client_id, roles=roles)
                 else:
