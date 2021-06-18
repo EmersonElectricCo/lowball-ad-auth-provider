@@ -107,6 +107,7 @@ class ADAuthProvider(AuthProvider):
                 return ClientData(client_id=auth_package.username, roles=roles)
 
             else: # We were able to bind but the user wasnt found. Likely a config issue with the base DN
+                conn.unbind()
                 raise AuthenticationNotInitializedException
         else:
             raise InvalidCredentialsException
@@ -140,6 +141,7 @@ class ADAuthProvider(AuthProvider):
                     conn.unbind()
                     return ClientData(client_id=client_id, roles=roles)
                 else:
+                    conn.unbind()
                     raise NotFoundException(f"The client_id: {client_id} was not found")
             else:
                 raise AuthenticationNotInitializedException
