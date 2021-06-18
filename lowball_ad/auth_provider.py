@@ -6,6 +6,7 @@ import ssl
 import json
 from ldap3 import Server, Connection, NTLM, ALL_ATTRIBUTES, Tls
 
+
 class ADAuthProvider(AuthProvider):
     """Default Auth Provider for Lowball Applications
     This is the primary class for the lowball_ad Authentication Provider.
@@ -29,36 +30,88 @@ class ADAuthProvider(AuthProvider):
             role_mappings = {}
         super(ADAuthProvider, self).__init__()
 
-        # Validate All Args
-        if not isinstance(hostname, str):
+        self.hostname = hostname
+        self.base_dn = base_dn
+        self.domain = domain
+        self.service_account = service_account
+        self.service_account_password = service_account_password
+        self.use_ssl = use_ssl
+        self.ignore_ssl_cert_errors = ignore_ssl_cert_errors
+        self.role_mappings = role_mappings
+
+    @property
+    def hostname(self):
+        return self._hostname
+
+    @hostname.setter
+    def hostname(self, value):
+        if not isinstance(value, str):
             raise TypeError("hostname must be a string")
-        self._hostname = hostname
+        self._hostname = value
 
-        if not isinstance(base_dn, str):
+    @property
+    def base_dn(self):
+        return self._base_dn
+
+    @base_dn.setter
+    def base_dn(self, value):
+        if not isinstance(value, str):
             raise TypeError("base_dn must be a string")
-        self._base_dn = base_dn
+        self._base_dn = value
 
-        if not isinstance(domain, str):
+    @property
+    def domain(self):
+        return self._domain
+
+    @domain.setter
+    def domain(self, value):
+        if not isinstance(value, str):
             raise TypeError("domain must be a string")
-        self._domain = domain
-        if use_ssl:
-            if ignore_ssl_cert_errors:
-                tls_configuration = Tls(validate=ssl.CERT_NONE)
-                self._server = Server(hostname, use_ssl=True, tls=tls_configuration)
-            else:
-                self._server = Server(hostname, use_ssl=True)
-        else:
-            self._server = Server(hostname, use_ssl=False)
+        self._domain = value
 
-        if service_account and not isinstance(service_account, str):
-            raise TypeError("service_account must be a string if set")
-        if service_account_password and not isinstance(service_account_password, str):
-            raise TypeError("service_account_password must be a string if set")
+    @property
+    def use_ssl(self):
+        return self._use_ssl
 
-        self._service_account = service_account
-        self._service_account_password = service_account_password
+    @use_ssl.setter
+    def use_ssl(self, value):
+        if not isinstance(value, bool):
+            raise TypeError("use_ssl must be a boolean")
+        self._use_ssl = value
 
-        self._role_mappings = role_mappings
+    @property
+    def service_account(self):
+        return self._service_account
+
+    @service_account.setter
+    def service_account(self, value):
+        if value is None:
+            value = ""
+        if not isinstance(value, str):
+            raise TypeError("service_account must be a string or empty")
+        self._service_account = value
+
+    @property
+    def service_account_password(self):
+        return self._service_account_password
+
+    @service_account_password.setter
+    def service_account_password(self, value):
+        if value is None:
+            value = ""
+        if not isinstance(value, str):
+            raise TypeError("service_account_password must be a string or empty")
+        self._service_account_password = value
+
+    @property
+    def ignore_ssl_cert_errors(self):
+        return self._ignore_ssl_cert_errors
+
+    @ignore_ssl_cert_errors.setter
+    def ignore_ssl_cert_errors(self, value):
+        if not isinstance(value, bool):
+            raise TypeError("ignore_ssl_cert_errors must be a boolean")
+        self._ignore_ssl_cert_errors = value
 
     @property
     def role_mappings(self):
@@ -68,10 +121,22 @@ class ADAuthProvider(AuthProvider):
     def role_mappings(self, value):
         if not isinstance(value, dict):
             raise ValueError("Invalid role mappings. Must be a dictionary of {str: [str, str],..}")
-        for mappings in value.values():
-            if not isinstance(mappings, list) and not all(isinstance(group, str) for group in mappings):
+        for key, mappings in value.items():
+            if not isinstance(key, str) or not isinstance(mappings, list) or not all(isinstance(group, str) for group in mappings):
                 raise ValueError("Invalid role mappings. Must be a dictionary of {str: [str, str],..}")
+
         self._role_mappings = value
+
+    def get_server(self):
+
+        if self.use_ssl:
+            if self.ignore_ssl_cert_errors:
+                tls_configuration = Tls(validate=ssl.CERT_NONE)
+                return Server(self.hostname, use_ssl=True, tls=tls_configuration)
+            else:
+                return Server(self.hostname, use_ssl=True)
+        else:
+            return Server(self.hostname, use_ssl=False)
 
     def get_roles(self, groups):
         return [role for role, mapping in self.role_mappings.items() if any(group in mapping for group in groups)]
@@ -83,14 +148,14 @@ class ADAuthProvider(AuthProvider):
         :return: auth data
         :rtype: AuthData
         """
-        conn = Connection(self._server,
-                          user=self._domain+"\\"+auth_package.username,
+        conn = Connection(self.get_server(),
+                          user=self.domain + "\\" + auth_package.username,
                           password=auth_package.password,
                           authentication=NTLM)
 
         # Connects with user; True if Valid Creds and Server Reachable
         if conn.bind():
-            if conn.search(self._base_dn, '(sAMAccountName=' + auth_package.username + ')', attributes=ALL_ATTRIBUTES):
+            if conn.search(self._base_dn, f'(sAMAccountName={auth_package.username})', attributes=ALL_ATTRIBUTES):
                 user_data = json.loads(conn.response_to_json())
                 user_groups = user_data['entries'][0]['attributes']['memberOf']
 
@@ -98,7 +163,8 @@ class ADAuthProvider(AuthProvider):
                 conn.unbind()
                 return ClientData(client_id=auth_package.username, roles=roles)
 
-            else: # We were able to bind but the user wasnt found. Likely a config issue with the base DN
+            # We were able to bind but the user wasn't found. Likely a config issue with the base DN
+            else:
                 conn.unbind()
                 raise AuthenticationNotInitializedException
         else:
@@ -121,12 +187,12 @@ class ADAuthProvider(AuthProvider):
             exception.description = "get_client not configured. Must include service_account in service configuration"
             raise exception
         else:
-            conn = Connection(self._server,
+            conn = Connection(self.get_server(),
                               user=self._domain + "\\" + self._service_account,
                               password=self._service_account_password,
                               authentication=NTLM)
             if conn.bind():
-                if conn.search(self._base_dn, '(sAMAccountName=' + client_id + ')', attributes=ALL_ATTRIBUTES):
+                if conn.search(self._base_dn, f'(sAMAccountName={client_id})', attributes=ALL_ATTRIBUTES):
                     user_data = json.loads(conn.response_to_json())
                     user_groups = user_data['entries'][0]['attributes']['memberOf']
                     roles = self.get_roles(user_groups)
