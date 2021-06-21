@@ -73,3 +73,22 @@ def role_mappings_groups_roles_expected_output(request):
 
     return mappings, user_groups, expected_roles
 
+
+@pytest.fixture(params=[
+    "hello/",
+    "hello\"",
+    "hello[",
+    "hello]",
+    "hello:",
+    "hello;",
+    "hello|",
+    "hello=",
+    "hello,",
+    "hello+",
+    "hello*",
+    "hello?",
+    "hello>",
+    "hello<"
+])
+def invalid_samaccountnames(request):
+    return request.param

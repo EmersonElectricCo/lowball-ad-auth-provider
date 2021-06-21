@@ -7,6 +7,10 @@ import json
 from ldap3 import Server, Connection, NTLM, ALL_ATTRIBUTES, Tls
 
 
+# https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-2000-server/bb726984(v=technet.10)?redirectedfrom=MSDN
+INVALID_SAMACCOUNTNAME_CHARS = "\"/\\[]:;|=,+*?<>"
+
+
 class ADAuthProvider(AuthProvider):
     """Default Auth Provider for Lowball Applications
     This is the primary class for the lowball_ad Authentication Provider.
@@ -152,7 +156,11 @@ class ADAuthProvider(AuthProvider):
         :return: auth data
         :rtype: AuthData
         """
-        conn = Connection(self.get_server(),
+
+        if any(c in auth_package.username for c in INVALID_SAMACCOUNTNAME_CHARS):
+            raise InvalidCredentialsException("Submitted samaccountname contained invalid characters")
+
+        conn = Connection(server=self.get_server(),
                           user=self.domain + "\\" + auth_package.username,
                           password=auth_package.password,
                           authentication=NTLM)
@@ -191,7 +199,10 @@ class ADAuthProvider(AuthProvider):
             exception.description = "get_client not configured. Must include service_account in service configuration"
             raise exception
         else:
-            conn = Connection(self.get_server(),
+            if any(c in client_id for c in INVALID_SAMACCOUNTNAME_CHARS):
+                raise InvalidCredentialsException("Submitted samaccountname contained invalid characters")
+
+            conn = Connection(server=self.get_server(),
                               user=self._domain + "\\" + self._service_account,
                               password=self._service_account_password,
                               authentication=NTLM)

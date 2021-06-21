@@ -252,12 +252,21 @@ class TestADAuthProvider:
 
     def test_auth_package_class_property(self, basic_ad_auth_provider):
 
-
         authp_class = basic_ad_auth_provider.auth_package_class
 
         assert authp_class == ADAuthPackage
 
+
 class TestADAuthProviderAuthenticate:
+
+    # https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-2000-server/bb726984(v=technet.10)?redirectedfrom=MSDN
+    # invalid characters " / \ [ ] : ; | = , + * ? < >
+
+    USER_SEARCH = '(sAMAccountName="{}")'
+
+    def test_invalid_credentials_exception_when_user_contains_invalid_characters(self):
+
+        pass
 
     def test_invalid_credentials_exception_when_unable_to_bind(self):
 
@@ -270,7 +279,16 @@ class TestADAuthProviderAuthenticate:
     def test_returns_client_data_with_excpected_roles_when_user_is_found(self):
         pass
 
+
 class TestADAuthProviderGetClient:
+    # https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-2000-server/bb726984(v=technet.10)?redirectedfrom=MSDN
+    # invalid characters " / \ [ ] : ; | = , + * ? < >
+
+    USER_SEARCH = '(sAMAccountName="{}")'
+
+    def test_invalid_credentials_exception_when_client_id_contains_invalid_characters(self):
+
+        pass
 
     def test_authentication_not_initialized_error_when_service_account_not_set(self):
         pass
