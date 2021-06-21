@@ -26,8 +26,7 @@ class ADAuthProvider(AuthProvider):
                  ignore_ssl_cert_errors=False,
                  role_mappings=None
                  ):
-        if role_mappings is None:
-            role_mappings = {}
+
         super(ADAuthProvider, self).__init__()
 
         self.hostname = hostname
@@ -45,8 +44,8 @@ class ADAuthProvider(AuthProvider):
 
     @hostname.setter
     def hostname(self, value):
-        if not isinstance(value, str):
-            raise TypeError("hostname must be a string")
+        if not value or not isinstance(value, str):
+            raise ValueError("hostname must be a nonempty string")
         self._hostname = value
 
     @property
@@ -55,8 +54,8 @@ class ADAuthProvider(AuthProvider):
 
     @base_dn.setter
     def base_dn(self, value):
-        if not isinstance(value, str):
-            raise TypeError("base_dn must be a string")
+        if not value or not isinstance(value, str):
+            raise ValueError("base_dn must be nonempty a string")
         self._base_dn = value
 
     @property
@@ -65,8 +64,8 @@ class ADAuthProvider(AuthProvider):
 
     @domain.setter
     def domain(self, value):
-        if not isinstance(value, str):
-            raise TypeError("domain must be a string")
+        if not value or not isinstance(value, str):
+            raise ValueError("domain must be nonempty a string")
         self._domain = value
 
     @property
@@ -76,7 +75,7 @@ class ADAuthProvider(AuthProvider):
     @use_ssl.setter
     def use_ssl(self, value):
         if not isinstance(value, bool):
-            raise TypeError("use_ssl must be a boolean")
+            raise ValueError("use_ssl must be a boolean")
         self._use_ssl = value
 
     @property
@@ -88,7 +87,7 @@ class ADAuthProvider(AuthProvider):
         if value is None:
             value = ""
         if not isinstance(value, str):
-            raise TypeError("service_account must be a string or empty")
+            raise ValueError("service_account must be a string or empty")
         self._service_account = value
 
     @property
@@ -100,7 +99,7 @@ class ADAuthProvider(AuthProvider):
         if value is None:
             value = ""
         if not isinstance(value, str):
-            raise TypeError("service_account_password must be a string or empty")
+            raise ValueError("service_account_password must be a string or empty")
         self._service_account_password = value
 
     @property
@@ -110,7 +109,7 @@ class ADAuthProvider(AuthProvider):
     @ignore_ssl_cert_errors.setter
     def ignore_ssl_cert_errors(self, value):
         if not isinstance(value, bool):
-            raise TypeError("ignore_ssl_cert_errors must be a boolean")
+            raise ValueError("ignore_ssl_cert_errors must be a boolean")
         self._ignore_ssl_cert_errors = value
 
     @property
@@ -119,6 +118,8 @@ class ADAuthProvider(AuthProvider):
 
     @role_mappings.setter
     def role_mappings(self, value):
+        if value is None:
+            value = {}
         if not isinstance(value, dict):
             raise ValueError("Invalid role mappings. Must be a dictionary of {str: [str, str],..}")
         for key, mappings in value.items():
@@ -132,17 +133,17 @@ class ADAuthProvider(AuthProvider):
         if self.use_ssl:
             if self.ignore_ssl_cert_errors:
                 tls_configuration = Tls(validate=ssl.CERT_NONE)
-                return Server(self.hostname, use_ssl=True, tls=tls_configuration)
+                return Server(host=self.hostname, use_ssl=True, tls=tls_configuration)
             else:
-                return Server(self.hostname, use_ssl=True)
+                return Server(host=self.hostname, use_ssl=True)
         else:
-            return Server(self.hostname, use_ssl=False)
+            return Server(host=self.hostname, use_ssl=False)
 
     def get_roles(self, groups):
 
         groups = [group.lower() for group in groups]
 
-        return [role for role, mapping in self.role_mappings.items() if any(group.lower() in mapping for group in groups)]
+        return [role for role, mapping in self.role_mappings.items() if any(group.lower() in [mapped_group.lower() for mapped_group in mapping] for group in groups)]
 
     def authenticate(self, auth_package):
         """Authenticate a user.
