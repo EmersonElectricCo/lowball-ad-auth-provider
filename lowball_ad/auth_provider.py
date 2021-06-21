@@ -139,7 +139,10 @@ class ADAuthProvider(AuthProvider):
             return Server(self.hostname, use_ssl=False)
 
     def get_roles(self, groups):
-        return [role for role, mapping in self.role_mappings.items() if any(group in mapping for group in groups)]
+
+        groups = [group.lower() for group in groups]
+
+        return [role for role, mapping in self.role_mappings.items() if any(group.lower() in mapping for group in groups)]
 
     def authenticate(self, auth_package):
         """Authenticate a user.
