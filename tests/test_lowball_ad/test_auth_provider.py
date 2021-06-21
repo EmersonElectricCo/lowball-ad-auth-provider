@@ -1,5 +1,7 @@
 import pytest
-from lowball_ad.auth_provider import ADAuthPackage, ADAuthProvider, Server, Tls, ssl
+from lowball_ad.auth_provider import ADAuthPackage, ADAuthProvider, Server, Tls, ssl, Connection, NTLM, ClientData
+from lowball.exceptions import InvalidCredentialsException, AuthenticationNotInitializedException, BadRequestException, \
+    NotFoundException
 from unittest.mock import Mock, PropertyMock, call
 
 class TestADAuthPackage:
@@ -262,11 +264,13 @@ class TestADAuthProviderAuthenticate:
     # https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-2000-server/bb726984(v=technet.10)?redirectedfrom=MSDN
     # invalid characters " / \ [ ] : ; | = , + * ? < >
 
-    USER_SEARCH = '(sAMAccountName="{}")'
+    USER_SEARCH = '(sAMAccountName={})'
 
-    def test_invalid_credentials_exception_when_user_contains_invalid_characters(self):
+    def test_invalid_credentials_exception_when_user_contains_invalid_characters(self, basic_ad_auth_provider,
+                                                                                 auth_packages_invalid_samaccount_name):
 
-        pass
+        with pytest.raises(InvalidCredentialsException):
+            basic_ad_auth_provider.authenticate(auth_packages_invalid_samaccount_name)
 
     def test_invalid_credentials_exception_when_unable_to_bind(self):
 
@@ -284,26 +288,86 @@ class TestADAuthProviderGetClient:
     # https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-2000-server/bb726984(v=technet.10)?redirectedfrom=MSDN
     # invalid characters " / \ [ ] : ; | = , + * ? < >
 
-    USER_SEARCH = '(sAMAccountName="{}")'
+    USER_SEARCH = '(sAMAccountName={})'
 
-    def test_invalid_credentials_exception_when_client_id_contains_invalid_characters(self):
+    def test_bad_request_exception_when_client_id_contains_invalid_characters_and_service_account_set(self,
+                                                                                      invalid_samaccountnames,
+                                                                                      ad_auth_provider_with_service_account):
 
-        pass
+        with pytest.raises(BadRequestException):
+            ad_auth_provider_with_service_account.get_client(invalid_samaccountnames)
 
-    def test_authentication_not_initialized_error_when_service_account_not_set(self):
-        pass
+    def test_authentication_not_initialized_error_when_service_account_not_set(self, basic_ad_auth_provider):
 
-    def test_not_found_exception_when_no_results_returned(self):
+        with pytest.raises(AuthenticationNotInitializedException):
+            basic_ad_auth_provider.get_client("any-client")
 
-        pass
+    def test_authentication_not_initialized_exception_when_unable_to_bind_with_service_account(self,
+                                                                                               ad_auth_provider_with_service_account,
+                                                                                               mock_connection_bind_fails,
+                                                                                               basic_mock_ldap3_server_equal,
 
-    def test_authentication_not_initialized_exception_when_service_account_credentials_invalid(self):
-        pass
+                                                                                               ):
+        with pytest.raises(AuthenticationNotInitializedException):
+            ad_auth_provider_with_service_account.get_client("any-client")
 
-    def test_returns_none_when_no_search_results_are_found(self):
+        expected_server = ad_auth_provider_with_service_account.get_server()
+        expected_user_info = ad_auth_provider_with_service_account.domain + "\\" + \
+                             ad_auth_provider_with_service_account.service_account
+        expected_password = ad_auth_provider_with_service_account.service_account_password
 
-        pass
+        Connection.bind.assert_called_once()
+        Connection.__init__.assert_called_once_with(server=expected_server,
+                                                    user=expected_user_info,
+                                                    password=expected_password,
+                                                    authentication=NTLM)
 
-    def test_returns_client_data_with_expected_roles_when_results_found(self):
+    def test_not_found_exception_when_no_results_returned(
+            self,
+            ad_auth_provider_with_service_account,
+            mock_connection_search_fails,
+            basic_mock_ldap3_server_equal
+    ):
+        with pytest.raises(NotFoundException):
+            ad_auth_provider_with_service_account.get_client("any-client")
 
-        pass
+        expected_server = ad_auth_provider_with_service_account.get_server()
+        expected_user_info = ad_auth_provider_with_service_account.domain + "\\" + \
+                             ad_auth_provider_with_service_account.service_account
+        expected_password = ad_auth_provider_with_service_account.service_account_password
+
+        Connection.bind.assert_called_once()
+        Connection.__init__.assert_called_once_with(server=expected_server,
+                                                    user=expected_user_info,
+                                                    password=expected_password,
+                                                    authentication=NTLM)
+        Connection.unbind.assert_called_once()
+        Connection.search.assert_called_once_with(search_base=ad_auth_provider_with_service_account.base_dn,
+                                                  search_filter=self.USER_SEARCH.format("any-client"),
+                                                  attributes="memberOf")
+
+    def test_returns_client_data_with_expected_roles_when_results_found(self,
+                                                                        mock_connection_search_returns_results,
+                                                                        ad_auth_provider_with_service_account,
+                                                                        basic_mock_ldap3_server_equal):
+        expected_roles = mock_connection_search_returns_results
+        expected_server = ad_auth_provider_with_service_account.get_server()
+        expected_user_info = ad_auth_provider_with_service_account.domain + "\\" + \
+                             ad_auth_provider_with_service_account.service_account
+        expected_password = ad_auth_provider_with_service_account.service_account_password
+
+        result = ad_auth_provider_with_service_account.get_client("any-client")
+
+        assert isinstance(result, ClientData)
+        assert result.client_id == "any-client"
+        assert set(result.roles) == set(expected_roles)
+
+        Connection.bind.assert_called_once()
+        Connection.__init__.assert_called_once_with(server=expected_server,
+                                                    user=expected_user_info,
+                                                    password=expected_password,
+                                                    authentication=NTLM)
+        Connection.unbind.assert_called_once()
+        Connection.search.assert_called_once_with(search_base=ad_auth_provider_with_service_account.base_dn,
+                                                  search_filter=self.USER_SEARCH.format("any-client"),
+                                                  attributes="memberOf")

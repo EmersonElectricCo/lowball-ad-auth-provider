@@ -1,6 +1,7 @@
 from lowball.models.provider_models.auth_provider import AuthProvider, AuthPackage
 from lowball.models.authentication_models import ClientData
-from lowball.exceptions import AuthenticationNotInitializedException, InvalidCredentialsException, NotFoundException
+from lowball.exceptions import AuthenticationNotInitializedException, InvalidCredentialsException, NotFoundException, \
+    BadRequestException
 
 import ssl
 import json
@@ -167,7 +168,10 @@ class ADAuthProvider(AuthProvider):
 
         # Connects with user; True if Valid Creds and Server Reachable
         if conn.bind():
-            if conn.search(self._base_dn, f'(sAMAccountName={auth_package.username})', attributes=ALL_ATTRIBUTES):
+            if conn.search(
+                    search_base=self.base_dn,
+                    search_filter=f'(sAMAccountName={auth_package.username})',
+                    attributes="memberOf"):
                 user_data = json.loads(conn.response_to_json())
                 user_groups = user_data['entries'][0]['attributes']['memberOf']
 
@@ -178,7 +182,10 @@ class ADAuthProvider(AuthProvider):
             # We were able to bind but the user wasn't found. Likely a config issue with the base DN
             else:
                 conn.unbind()
-                raise AuthenticationNotInitializedException
+                exception = AuthenticationNotInitializedException()
+                exception.description = "Unable to locate user though authentication succeeded. Check configuration"
+
+                raise exception
         else:
             raise InvalidCredentialsException
 
@@ -200,14 +207,17 @@ class ADAuthProvider(AuthProvider):
             raise exception
         else:
             if any(c in client_id for c in INVALID_SAMACCOUNTNAME_CHARS):
-                raise InvalidCredentialsException("Submitted samaccountname contained invalid characters")
+                raise BadRequestException("Submitted samaccountname contained invalid characters")
 
             conn = Connection(server=self.get_server(),
-                              user=self._domain + "\\" + self._service_account,
+                              user=self.domain + "\\" + self.service_account,
                               password=self._service_account_password,
                               authentication=NTLM)
             if conn.bind():
-                if conn.search(self._base_dn, f'(sAMAccountName={client_id})', attributes=ALL_ATTRIBUTES):
+                if conn.search(
+                        search_base=self.base_dn,
+                        search_filter=f'(sAMAccountName={client_id})',
+                        attributes="memberOf"):
                     user_data = json.loads(conn.response_to_json())
                     user_groups = user_data['entries'][0]['attributes']['memberOf']
                     roles = self.get_roles(user_groups)
@@ -217,7 +227,12 @@ class ADAuthProvider(AuthProvider):
                     conn.unbind()
                     raise NotFoundException(f"The client_id: {client_id} was not found")
             else:
-                raise AuthenticationNotInitializedException
+
+                exception = AuthenticationNotInitializedException()
+                exception.description = "get_client not configured. Unable to connect to AD Server with given hostname" \
+                                        " and service account"
+
+                raise exception
 
 
 class ADAuthPackage(AuthPackage):
