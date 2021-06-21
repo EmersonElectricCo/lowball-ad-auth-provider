@@ -197,3 +197,8 @@ def mock_connection_search_returns_results(mock_connection_bind_succeeds, monkey
     expected_roles = ad_auth_provider_with_service_account.get_roles(user_groups)
 
     return expected_roles
+
+@pytest.fixture
+def simple_auth_package():
+
+    return ADAuthPackage("any-client", "password")

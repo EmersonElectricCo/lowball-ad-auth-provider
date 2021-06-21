@@ -272,16 +272,73 @@ class TestADAuthProviderAuthenticate:
         with pytest.raises(InvalidCredentialsException):
             basic_ad_auth_provider.authenticate(auth_packages_invalid_samaccount_name)
 
-    def test_invalid_credentials_exception_when_unable_to_bind(self):
+    def test_invalid_credentials_exception_when_unable_to_bind(self, mock_connection_bind_fails,
+                                                               ad_auth_provider_with_service_account,
+                                                               simple_auth_package,
+                                                               basic_mock_ldap3_server_equal):
 
-        pass
+        with pytest.raises(InvalidCredentialsException):
+            ad_auth_provider_with_service_account.authenticate(simple_auth_package)
 
-    def test_unable_to_authenticate_exception_when_search_fails(self):
+        expected_server = ad_auth_provider_with_service_account.get_server()
+        expected_user_info = ad_auth_provider_with_service_account.domain + "\\" + simple_auth_package.username
+        expected_password = simple_auth_package.password
 
-        pass
+        Connection.bind.assert_called_once()
+        Connection.__init__.assert_called_once_with(server=expected_server,
+                                                    user=expected_user_info,
+                                                    password=expected_password,
+                                                    authentication=NTLM)
 
-    def test_returns_client_data_with_excpected_roles_when_user_is_found(self):
-        pass
+    def test_unable_to_authenticate_exception_when_search_fails(self, ad_auth_provider_with_service_account,
+                                                                simple_auth_package,
+                                                                mock_connection_search_fails,
+                                                                basic_mock_ldap3_server_equal):
+        with pytest.raises(AuthenticationNotInitializedException):
+            ad_auth_provider_with_service_account.authenticate(simple_auth_package)
+
+        expected_server = ad_auth_provider_with_service_account.get_server()
+        expected_user_info = ad_auth_provider_with_service_account.domain + "\\" + simple_auth_package.username
+        expected_password = simple_auth_package.password
+
+        Connection.bind.assert_called_once()
+        Connection.__init__.assert_called_once_with(server=expected_server,
+                                                    user=expected_user_info,
+                                                    password=expected_password,
+                                                    authentication=NTLM)
+        Connection.unbind.assert_called_once()
+        Connection.search.assert_called_once_with(search_base=ad_auth_provider_with_service_account.base_dn,
+                                                  search_filter=self.USER_SEARCH.format("any-client"),
+                                                  attributes="memberOf")
+
+    def test_returns_client_data_with_excpected_roles_when_user_is_found(self,
+                                                                         mock_connection_search_returns_results,
+                                                                         ad_auth_provider_with_service_account,
+                                                                         basic_mock_ldap3_server_equal,
+                                                                         simple_auth_package
+                                                                         ):
+
+        expected_roles = mock_connection_search_returns_results
+        expected_server = ad_auth_provider_with_service_account.get_server()
+        expected_user_info = ad_auth_provider_with_service_account.domain + "\\" + simple_auth_package.username
+        expected_password = simple_auth_package.password
+
+        result = ad_auth_provider_with_service_account.authenticate(simple_auth_package)
+
+        assert isinstance(result, ClientData)
+        assert result.client_id == simple_auth_package.username
+        assert set(result.roles) == set(expected_roles)
+
+        Connection.bind.assert_called_once()
+        Connection.__init__.assert_called_once_with(server=expected_server,
+                                                    user=expected_user_info,
+                                                    password=expected_password,
+                                                    authentication=NTLM)
+        Connection.response_to_json.assert_called_once()
+        Connection.unbind.assert_called_once()
+        Connection.search.assert_called_once_with(search_base=ad_auth_provider_with_service_account.base_dn,
+                                                  search_filter=self.USER_SEARCH.format("any-client"),
+                                                  attributes="memberOf")
 
 
 class TestADAuthProviderGetClient:
@@ -362,6 +419,7 @@ class TestADAuthProviderGetClient:
         assert result.client_id == "any-client"
         assert set(result.roles) == set(expected_roles)
 
+        Connection.response_to_json.assert_called_once()
         Connection.bind.assert_called_once()
         Connection.__init__.assert_called_once_with(server=expected_server,
                                                     user=expected_user_info,
