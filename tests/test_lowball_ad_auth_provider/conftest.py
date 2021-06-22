@@ -1,7 +1,7 @@
 import pytest
-from lowball_ad import ADAuthProvider, ADAuthPackage
-from lowball_ad.auth_provider import Server, Connection, Tls, NTLM
-import lowball_ad
+from lowball_ad_auth_provider import ADAuthProvider, ADAuthPackage
+from lowball_ad_auth_provider.auth_provider import Server, Connection, Tls, NTLM
+import lowball_ad_auth_provider
 from unittest.mock import Mock, PropertyMock
 import json
 
@@ -125,25 +125,25 @@ def auth_packages_invalid_samaccount_name(invalid_samaccountnames):
 @pytest.fixture
 def mock_connection_init(monkeypatch):
 
-    monkeypatch.setattr(lowball_ad.auth_provider.Connection, "__init__", Mock(return_value=None))
-    monkeypatch.setattr(lowball_ad.auth_provider.Connection, "unbind", Mock())
+    monkeypatch.setattr(lowball_ad_auth_provider.auth_provider.Connection, "__init__", Mock(return_value=None))
+    monkeypatch.setattr(lowball_ad_auth_provider.auth_provider.Connection, "unbind", Mock())
 
 @pytest.fixture
 def mock_connection_bind_fails(monkeypatch, mock_connection_init):
 
-    monkeypatch.setattr(lowball_ad.auth_provider.Connection, "bind", Mock(return_value=False))
+    monkeypatch.setattr(lowball_ad_auth_provider.auth_provider.Connection, "bind", Mock(return_value=False))
 
 
 @pytest.fixture
 def mock_connection_bind_succeeds(monkeypatch, mock_connection_init):
 
-    monkeypatch.setattr(lowball_ad.auth_provider.Connection, "bind", Mock(return_value=True))
+    monkeypatch.setattr(lowball_ad_auth_provider.auth_provider.Connection, "bind", Mock(return_value=True))
 
 
 @pytest.fixture
 def mock_connection_search_fails(mock_connection_bind_succeeds, monkeypatch):
 
-    monkeypatch.setattr(lowball_ad.auth_provider.Connection, "search", Mock(return_value=False))
+    monkeypatch.setattr(lowball_ad_auth_provider.auth_provider.Connection, "search", Mock(return_value=False))
 
 
 @pytest.fixture(params=[
@@ -185,8 +185,8 @@ def mock_connection_search_fails(mock_connection_bind_succeeds, monkeypatch):
     }
 ])
 def mock_connection_search_returns_results(mock_connection_bind_succeeds, monkeypatch, request, ad_auth_provider_with_service_account):
-    monkeypatch.setattr(lowball_ad.auth_provider.Connection, "search", Mock(return_value=True))
-    monkeypatch.setattr(lowball_ad.auth_provider.Connection, "response_to_json", Mock(return_value=json.dumps(request.param)))
+    monkeypatch.setattr(lowball_ad_auth_provider.auth_provider.Connection, "search", Mock(return_value=True))
+    monkeypatch.setattr(lowball_ad_auth_provider.auth_provider.Connection, "response_to_json", Mock(return_value=json.dumps(request.param)))
     ad_auth_provider_with_service_account.role_mappings = {
         "role1": ["group1"],
         "role2": ["group2", 'group3'],

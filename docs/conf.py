@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'lowball_ad'
+project = 'lowball_ad_auth_provider'
 copyright = '2021'
 
 # The full version, including alpha/beta/rc tags

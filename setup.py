@@ -32,7 +32,7 @@ def readme():
     return description
 
 
-setup(name="lowball",
+setup(name="lowball-ad-auth-provider",
       version=VERSION,
       description=DESCRIPTION,
       long_description=readme(),
@@ -42,6 +42,6 @@ setup(name="lowball",
       license="Apache License 2.0",
       packages=find_packages(),
       install_requires=read_requirements(),
-      test_suite="lowball-adconftest.py.tests",
+      test_suite="tests",
       zip_safe=False
       )

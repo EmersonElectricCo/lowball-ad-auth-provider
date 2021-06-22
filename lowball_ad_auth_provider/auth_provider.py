@@ -14,7 +14,7 @@ INVALID_SAMACCOUNTNAME_CHARS = "\"/\\[]:;|=,+*?<>"
 
 class ADAuthProvider(AuthProvider):
     """Default Auth Provider for Lowball Applications
-    This is the primary class for the lowball_ad Authentication Provider.
+    This is the primary class for the lowball_ad_auth_provider Authentication Provider.
     :param username: the username of service account able to lookup and validate users.
     :type username: str
     :param password: the password of the service account.

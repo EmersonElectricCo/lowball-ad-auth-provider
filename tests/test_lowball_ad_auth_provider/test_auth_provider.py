@@ -1,5 +1,5 @@
 import pytest
-from lowball_ad.auth_provider import ADAuthPackage, ADAuthProvider, Server, Tls, ssl, Connection, NTLM, ClientData
+from lowball_ad_auth_provider.auth_provider import ADAuthPackage, ADAuthProvider, Server, Tls, ssl, Connection, NTLM, ClientData
 from lowball.exceptions import InvalidCredentialsException, AuthenticationNotInitializedException, BadRequestException, \
     NotFoundException
 from unittest.mock import Mock, PropertyMock, call

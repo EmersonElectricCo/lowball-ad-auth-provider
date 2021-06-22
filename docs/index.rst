@@ -80,3 +80,19 @@ Configuration
         finance:
           - CN=accounting,OU=groups,DC=example,DC=org
           - CN=owners,OU=groups,DC=example,DC=org
+
+
+Example Usage
+*************
+
+.. code-block:: python
+    from lowball_ad_auth_provider import ADAuthProvider
+    from lowball import Lowball, config_from_file
+
+    app = Lowball(config_from_file("/path/to/config"), auth_provider=ADAuthProvider)
+
+    @app.route("/hello", methods=["GET"])
+    def hello():
+        return {"hello": "good byte"}, 200
+
+
