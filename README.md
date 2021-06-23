@@ -14,7 +14,7 @@ lowball-ad has been tested to work with only Python 3.6+
 
 ```bash
 
-    pip install lowball-ad
+    pip install lowball-ad-auth-provider
 ```
 
 ### From Source

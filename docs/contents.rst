@@ -18,7 +18,7 @@ Pip
 
 .. code-block:: bash
 
-    pip install lowball-ad
+    pip install lowball-ad-auth-provider
 
 From Source
 ***********
