@@ -86,6 +86,7 @@ Example Usage
 *************
 
 .. code-block:: python
+
     from lowball_ad_auth_provider import ADAuthProvider
     from lowball import Lowball, config_from_file
 
