@@ -30,6 +30,9 @@ lowball-ad has been tested to work with only Python 3.6+
 ## Configuration
 ***
 
+The configuration for the ad auth provider goes under the `auth_provider` section of a lowball configuration
+
+
 **Mandatory Config Fields**
 
 `base_dn`
@@ -61,8 +64,6 @@ lowball-ad has been tested to work with only Python 3.6+
 
 
 **Example Config**
-
-The configuration for the ad auth provider goes under the `auth_provider` section of a lowball configuration
 
 ```yaml
 ...
