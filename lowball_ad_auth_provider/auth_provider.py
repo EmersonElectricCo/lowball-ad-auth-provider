@@ -173,10 +173,9 @@ class ADAuthProvider(AuthProvider):
                     search_filter=f'(sAMAccountName={auth_package.username})',
                     attributes="memberOf"):
                 user_data = json.loads(conn.response_to_json())
-                user_groups = user_data['entries'][0]['attributes']['memberOf']
-
-                roles = self.get_roles(user_groups)
                 conn.unbind()
+                user_groups = user_data['entries'][0]['attributes']['memberOf']
+                roles = self.get_roles(user_groups)
                 return ClientData(client_id=auth_package.username, roles=roles)
 
             # We were able to bind but the user wasn't found. Likely a config issue with the base DN
@@ -219,9 +218,9 @@ class ADAuthProvider(AuthProvider):
                         search_filter=f'(sAMAccountName={client_id})',
                         attributes="memberOf"):
                     user_data = json.loads(conn.response_to_json())
+                    conn.unbind()
                     user_groups = user_data['entries'][0]['attributes']['memberOf']
                     roles = self.get_roles(user_groups)
-                    conn.unbind()
                     return ClientData(client_id=client_id, roles=roles)
                 else:
                     conn.unbind()
