@@ -32,6 +32,8 @@ From Source
 Configuration
 *************
 
+The configuration for the ad auth provider goes under the `auth_provider` section of a lowball configuration
+
 **Mandatory Config Fields**
 
 `base_dn`
@@ -95,5 +97,4 @@ Example Usage
     @app.route("/hello", methods=["GET"])
     def hello():
         return {"hello": "good byte"}, 200
-
 
