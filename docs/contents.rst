@@ -94,7 +94,4 @@ Example Usage
 
     app = Lowball(config_from_file("/path/to/config"), auth_provider=ADAuthProvider)
 
-    @app.route("/hello", methods=["GET"])
-    def hello():
-        return {"hello": "good byte"}, 200
-
+   
