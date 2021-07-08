@@ -5,8 +5,7 @@ from lowball.exceptions import AuthenticationNotInitializedException, InvalidCre
 
 import ssl
 import json
-from ldap3 import Server, Connection, NTLM, ALL_ATTRIBUTES, Tls
-
+from ldap3 import Server, Connection, NTLM, Tls
 
 # https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-2000-server/bb726984(v=technet.10)?redirectedfrom=MSDN
 INVALID_SAMACCOUNTNAME_CHARS = "\"/\\[]:;|=,+*?<>"
@@ -158,7 +157,6 @@ class ADAuthProvider(AuthProvider):
     def _validate_samaccountname(self, name):
         if any(c in name for c in INVALID_SAMACCOUNTNAME_CHARS):
             raise BadRequestException("Submitted samaccountname contained invalid characters")
-
 
     def _ad_search(self, connection, samaccountname):
         if connection.search(
