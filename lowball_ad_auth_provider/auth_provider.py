@@ -155,6 +155,11 @@ class ADAuthProvider(AuthProvider):
 
         return [role for role, mapping in self.role_mappings.items() if any(group.lower() in [mapped_group.lower() for mapped_group in mapping] for group in groups)]
 
+    def _validate_samaccountname(self, name):
+        if any(c in name for c in INVALID_SAMACCOUNTNAME_CHARS):
+            raise BadRequestException("Submitted samaccountname contained invalid characters")
+
+
     def _ad_search(self, connection, samaccountname):
         if connection.search(
                 search_base=self.base_dn,
@@ -178,8 +183,7 @@ class ADAuthProvider(AuthProvider):
         :rtype: AuthData
         """
 
-        if any(c in auth_package.username for c in INVALID_SAMACCOUNTNAME_CHARS):
-            raise InvalidCredentialsException("Submitted samaccountname contained invalid characters")
+        self._validate_samaccountname(auth_package.username)
 
         conn = Connection(server=self.get_server(),
                           user=self.domain + "\\" + auth_package.username,
@@ -212,8 +216,7 @@ class ADAuthProvider(AuthProvider):
             exception.description = "get_client not configured. Must include service_account in service configuration"
             raise exception
         else:
-            if any(c in client_id for c in INVALID_SAMACCOUNTNAME_CHARS):
-                raise BadRequestException("Submitted samaccountname contained invalid characters")
+            self._validate_samaccountname(client_id)
 
             conn = Connection(server=self.get_server(),
                               user=self.domain + "\\" + self.service_account,

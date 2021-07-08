@@ -266,10 +266,10 @@ class TestADAuthProviderAuthenticate:
 
     USER_SEARCH = '(sAMAccountName={})'
 
-    def test_invalid_credentials_exception_when_user_contains_invalid_characters(self, basic_ad_auth_provider,
+    def test_bad_request_exception_when_user_contains_invalid_characters(self, basic_ad_auth_provider,
                                                                                  auth_packages_invalid_samaccount_name):
 
-        with pytest.raises(InvalidCredentialsException):
+        with pytest.raises(BadRequestException):
             basic_ad_auth_provider.authenticate(auth_packages_invalid_samaccount_name)
 
     def test_invalid_credentials_exception_when_unable_to_bind(self, mock_connection_bind_fails,
