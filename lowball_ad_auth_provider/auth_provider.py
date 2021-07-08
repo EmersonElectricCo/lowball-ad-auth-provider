@@ -133,6 +133,11 @@ class ADAuthProvider(AuthProvider):
 
         self._role_mappings = value
 
+    @property
+    def auth_package_class(self):
+        """The auth package class that this class' `authenticate` method accepts."""
+        return ADAuthPackage
+
     def get_server(self):
 
         if self.use_ssl:
@@ -149,6 +154,21 @@ class ADAuthProvider(AuthProvider):
         groups = [group.lower() for group in groups]
 
         return [role for role, mapping in self.role_mappings.items() if any(group.lower() in [mapped_group.lower() for mapped_group in mapping] for group in groups)]
+
+    def _ad_search(self, connection, samaccountname):
+        if connection.search(
+                search_base=self.base_dn,
+                search_filter=f'(sAMAccountName={samaccountname})',
+                attributes="memberOf"):
+            user_data = json.loads(connection.response_to_json())
+            connection.unbind()
+            user_groups = user_data['entries'][0]['attributes']['memberOf']
+            roles = self.get_roles(user_groups)
+            return ClientData(client_id=samaccountname, roles=roles)
+
+        else:
+            connection.unbind()
+            return False
 
     def authenticate(self, auth_package):
         """Authenticate a user.
@@ -168,30 +188,17 @@ class ADAuthProvider(AuthProvider):
 
         # Connects with user; True if Valid Creds and Server Reachable
         if conn.bind():
-            if conn.search(
-                    search_base=self.base_dn,
-                    search_filter=f'(sAMAccountName={auth_package.username})',
-                    attributes="memberOf"):
-                user_data = json.loads(conn.response_to_json())
-                conn.unbind()
-                user_groups = user_data['entries'][0]['attributes']['memberOf']
-                roles = self.get_roles(user_groups)
-                return ClientData(client_id=auth_package.username, roles=roles)
-
+            client_data = self._ad_search(conn, auth_package.username)
+            if client_data:
+                return client_data
             # We were able to bind but the user wasn't found. Likely a config issue with the base DN
             else:
-                conn.unbind()
                 exception = AuthenticationNotInitializedException()
                 exception.description = "Unable to locate user though authentication succeeded. Check configuration"
 
                 raise exception
         else:
             raise InvalidCredentialsException
-
-    @property
-    def auth_package_class(self):
-        """The auth package class that this class' `authenticate` method accepts."""
-        return ADAuthPackage
 
     def get_client(self, client_id):
         """if service_account is configured, will enable users to create their own tokens
@@ -213,17 +220,10 @@ class ADAuthProvider(AuthProvider):
                               password=self._service_account_password,
                               authentication=NTLM)
             if conn.bind():
-                if conn.search(
-                        search_base=self.base_dn,
-                        search_filter=f'(sAMAccountName={client_id})',
-                        attributes="memberOf"):
-                    user_data = json.loads(conn.response_to_json())
-                    conn.unbind()
-                    user_groups = user_data['entries'][0]['attributes']['memberOf']
-                    roles = self.get_roles(user_groups)
-                    return ClientData(client_id=client_id, roles=roles)
+                client_data = self._ad_search(conn, client_id)
+                if client_data:
+                    return client_data
                 else:
-                    conn.unbind()
                     raise NotFoundException(f"The client_id: {client_id} was not found")
             else:
 
