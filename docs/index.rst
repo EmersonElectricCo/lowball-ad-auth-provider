@@ -1,6 +1,3 @@
-.. lowball-ldap documentation master file, created by
-
-
 Welcome to lowball-ad's documentation!
 ========================================
 
