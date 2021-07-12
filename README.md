@@ -27,6 +27,15 @@ lowball-ad has been tested to work with only Python 3.6+
     python setup.py install
 ```
 
+## Auth Package
+
+The auth package that should be sent to `POST /builtins/auth`
+
+    {
+        "username": "ad_user",
+        "password": "ad_password"
+    }
+
 ## Configuration
 ***
 
@@ -96,3 +105,5 @@ app = Lowball(config_from_file("/path/to/config"), auth_provider=ADAuthProvider)
 
 
 ```
+
+See full [Docs]("https://lowball-ad-auth-provider.readthedocs.io/en/latest/") for more information

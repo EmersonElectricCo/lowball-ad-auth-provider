@@ -1,6 +1,9 @@
 Welcome to lowball-ad's documentation!
 ========================================
 
+lowball-ad-auth-provider is an AuthProvider implementation for a `Lowball <https://github.com/EmersonElectricCo/lowball>`_
+microservice, that works with Active Directory.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -25,6 +28,46 @@ From Source
     git clone https://github.com/EmersonElectricCo/lowball-ad-auth-provider
     cd ./lowball-ad-auth-provider
     python setup.py install
+
+
+Implemented Interface
+*********************
+
+lowball ad implements the following methods of a Lowball Authentication Provider
+
+* authenticate - this is required for basic authentication with AD
+
+* get_client - service account/password must be configured to work. Enables basic user lookup routes
+
+
+The following authentication provider dependent builtin routes will be usable with this implementation. Routes related
+to the authentication database will be available as expected and implemented by the chosen authentication database.
+
+* POST /builtins/auth (login)
+
+* DELETE /builtins/auth (logout)
+
+* GET /builtins/auth (whoami)
+
+* POST /builtins/auth/tokens (create token) - for non admin users only if service account is configured
+
+* GET /builtins/client (get authenticated client) - only if service account is configured
+
+* GET /builtins/client/<client_id> ( get client information ) - only if service account is configured
+
+
+Auth Package
+************
+
+The Authentication Package which should be sent to `POST /builtins/auth` for authentication
+
+.. code-block:: json
+
+    {
+       "username": "ad_user",
+       "password": "ad_password"
+    }
+
 
 Configuration
 *************
